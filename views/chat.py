@@ -1,3 +1,4 @@
+
 """Chat: general CCIS questions answered by the local model (no verdicts)."""
 from __future__ import annotations
 
@@ -31,8 +32,16 @@ def render() -> None:
         with st.chat_message("user"):
             st.markdown(q)
         with st.chat_message("assistant"):
-            with st.spinner("Thinking…"):
-                ans, used_ai = advisor.chat_answer(q)
+            # Added: show skeleton placeholders while the AI generates a reply.
+            loading = st.empty()
+            with loading.container():
+                ui.render_skeleton(lines=3, title="HeronGuide is thinking")
+                st.caption("Preparing your answer. This may take a moment…")
+
+            ans, used_ai = advisor.chat_answer(q)
+
+            # Remove the skeleton before displaying the real answer.
+            loading.empty()
             st.markdown(ans)
             note = "" if used_ai else "Local AI unavailable — built-in reply."
             if note:

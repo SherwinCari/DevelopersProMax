@@ -1,3 +1,4 @@
+
 """HeronGuide — UMak CCIS Smart Admission Advisor (hackathon prototype).
 
 Streamlit entry point: shared theme, sidebar navigation, page routing.
@@ -5,7 +6,7 @@ Streamlit entry point: shared theme, sidebar navigation, page routing.
 from __future__ import annotations
 
 import streamlit as st
-
+import time
 import advisor
 import db
 import ui_theme
@@ -37,8 +38,28 @@ ui_theme.inject_theme()
 
 # ---- Login gate: nothing below runs until the user has signed in ----
 if "hg_user" not in st.session_state:
+    # ADDED: determine whether this is the first login-page load.
+    first_login_load = not st.session_state.get(
+        "hg_login_bootstrapped", False
+    )
+
+    # ADDED: display the login skeleton before database initialization.
+    loading = st.empty()
+
+    if first_login_load:
+        with loading.container():
+            auth_page.render_loading()
+
     if not _init_db():
         _init_db.clear()  # retry on the next run instead of caching the failure
+
+    # ADDED: keep the skeleton visible for at least 2 seconds for your demo.
+    if first_login_load:
+        time.sleep(max(0, 2))
+        loading.empty()
+        st.session_state["hg_login_bootstrapped"] = True
+
+    # Original login page remains unchanged.
     auth_page.render()
     st.stop()
 

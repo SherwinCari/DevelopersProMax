@@ -468,3 +468,73 @@ def render_source_card(title: str, description: str) -> None:
         f'<div class="d">{html.escape(description)}</div></div>',
         unsafe_allow_html=True,
     )
+
+def render_skeleton(lines: int = 3, title: str | None = None) -> None:
+    """Render animated loading placeholders using the shared HeronGuide theme."""
+    lines = max(1, min(int(lines), 8))
+    heading = (
+        f'<div class="hg-skeleton-heading">{html.escape(title)}</div>'
+        if title else ""
+    )
+    placeholders = "".join(
+        f'<div class="hg-skeleton-line line-{i + 1}"></div>'
+        for i in range(lines)
+    )
+
+    st.markdown(
+        f'''
+        <style>
+          @keyframes hg-skeleton-shimmer {{
+            0% {{ background-position: 200% 0; }}
+            100% {{ background-position: -200% 0; }}
+          }}
+
+          .hg-skeleton-card {{
+            padding: 1rem 1.1rem;
+            margin: 0.4rem 0 0.8rem;
+            border: 1px solid {BORDER};
+            border-radius: 14px;
+            background: {WHITE};
+            box-shadow: 0 4px 14px rgba(11,31,77,0.04);
+          }}
+
+          .hg-skeleton-heading {{
+            width: 46%;
+            height: 19px;
+            margin: 0 0 1rem;
+            border-radius: 6px;
+            background: #e8edf5;
+          }}
+
+          .hg-skeleton-line {{
+            height: 12px;
+            margin: 12px 0;
+            border-radius: 6px;
+            background: linear-gradient(
+              90deg, #edf1f7 25%, #f8faff 50%, #edf1f7 75%
+            );
+            background-size: 200% 100%;
+            animation: hg-skeleton-shimmer 1.35s ease-in-out infinite;
+          }}
+
+          .hg-skeleton-line.line-2 {{ width: 88%; }}
+          .hg-skeleton-line.line-3 {{ width: 72%; }}
+          .hg-skeleton-line.line-4 {{ width: 82%; }}
+          .hg-skeleton-line.line-5 {{ width: 63%; }}
+          .hg-skeleton-line.line-6 {{ width: 78%; }}
+          .hg-skeleton-line.line-7 {{ width: 58%; }}
+          .hg-skeleton-line.line-8 {{ width: 85%; }}
+
+          @media (prefers-reduced-motion: reduce) {{
+            .hg-skeleton-line {{ animation: none; }}
+          }}
+        </style>
+
+        <div class="hg-skeleton-card"
+             role="status" aria-label="Loading content">
+          {heading}
+          {placeholders}
+        </div>
+        ''',
+        unsafe_allow_html=True,
+    )
