@@ -15,7 +15,7 @@ from views import auth_page, campus_map, chat, home, programs, settings
 
 st.set_page_config(
     page_title="HeronGuide — UMak CCIS Admission Advisor",
-    page_icon="🪶",
+    page_icon=str(ui_theme.LOGO_PNG_PATH),
     layout="wide",
 )
 
