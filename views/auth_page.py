@@ -131,10 +131,10 @@ def _left_panel() -> None:
     )
     hero = f"""
         <div>
-          <div class="hg-auth-eyebrow">UMak CCIS · Smart Admission Advisor</div>
+          <div class="hg-auth-eyebrow">UMak · Smart Admission Advisor</div>
           <h1 class="hg-auth-title">Your next chapter<br>starts <em>here.</em></h1>
           <p class="hg-auth-lead">A clearer path to your future. Get honest guidance and
-             find where you belong at CCIS.</p>
+             find where you belong at UMak.</p>
         </div>
         <div>{feat_html}</div>
     """.strip()
@@ -202,7 +202,7 @@ def _signup_form() -> None:
     st.markdown(
         f'<div class="hg-auth-badge">{_svg(_BOOK, 34)}</div>'
         '<h2 class="hg-auth-h">Create your account</h2>'
-        '<div class="hg-auth-sub">Join HeronGuide and find your place at CCIS.</div>',
+        '<div class="hg-auth-sub">Join HeronGuide and find your place at UMak.</div>',
         unsafe_allow_html=True,
     )
     with st.form("signup_form", border=False):
