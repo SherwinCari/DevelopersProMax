@@ -1,5 +1,5 @@
 
-"""HeronGuide — UMak CCIS Smart Admission Advisor (hackathon prototype).
+"""HeronGuide — UMak Smart Admission Advisor (hackathon prototype).
 
 Streamlit entry point: shared theme, sidebar navigation, page routing.
 """
@@ -16,8 +16,13 @@ from views import auth_page, chat, home, programs, settings
 from views import auth_page, campus_map, chat, home, programs, settings
 
 st.set_page_config(
+<<<<<<< HEAD
     page_title="HeronGuide — UMak CCIS Admission Advisor",
     page_icon=str(Path(__file__).parent / "assets" / "heronguide-logo.png"),
+=======
+    page_title="HeronGuide — UMak Admission Advisor",
+    page_icon=str(ui_theme.LOGO_PNG_PATH),
+>>>>>>> 17d2d09a9912b240fc48e8c51346d79fdfbacc31
     layout="wide",
 )
 
