@@ -1,4 +1,3 @@
-
 """HeronGuide — UMak Smart Admission Advisor (hackathon prototype).
 
 Streamlit entry point: shared theme, sidebar navigation, page routing.
@@ -12,14 +11,11 @@ import streamlit as st
 import advisor
 import db
 import ui_theme
-from views import auth_page, chat, home, programs, settings
 from views import auth_page, campus_map, chat, home, programs, settings
 
 st.set_page_config(
-    page_title="HeronGuide — UMak CCIS Admission Advisor",
+    page_title="HeronGuide — UMak Admission Advisor",
     page_icon=str(Path(__file__).parent / "assets" / "heronguide-logo.png"),
-    page_title=("HeronGuide — UMak Admission Advisor"),
-    page_icon=str(ui_theme.LOGO_PNG_PATH),
     layout="wide",
 )
 
@@ -43,12 +39,10 @@ ui_theme.inject_theme()
 
 # ---- Login gate: nothing below runs until the user has signed in ----
 if "hg_user" not in st.session_state:
-    # ADDED: determine whether this is the first login-page load.
-    first_login_load = not st.session_state.get(
-        "hg_login_bootstrapped", False
-    )
+    # Determine whether this is the first login-page load.
+    first_login_load = not st.session_state.get("hg_login_bootstrapped", False)
 
-    # ADDED: display the login skeleton before database initialization.
+    # Display the login skeleton before database initialization.
     loading = st.empty()
 
     if first_login_load:
@@ -58,13 +52,12 @@ if "hg_user" not in st.session_state:
     if not _init_db():
         _init_db.clear()  # retry on the next run instead of caching the failure
 
-    # ADDED: keep the skeleton visible for at least 2 seconds for your demo.
+    # Keep the skeleton visible for at least 2 seconds for the demo.
     if first_login_load:
         time.sleep(max(0, 2))
         loading.empty()
         st.session_state["hg_login_bootstrapped"] = True
 
-    # Original login page remains unchanged.
     auth_page.render()
     st.stop()
 
