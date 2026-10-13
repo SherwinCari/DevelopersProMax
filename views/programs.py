@@ -16,7 +16,7 @@ def _fmt(v) -> str:
 def render() -> None:
     ui.render_topbar()
     ui.render_header(local_ai=st.session_state.get("hg_ai_up", True))
-    ui.page_header("CCIS Programs", "Programs and the cutoffs the advisor checks against.")
+    ui.page_header("UMak Programs", "Programs and the cutoffs the advisor checks against.")
     ui.render_banner("Cutoffs are <strong>demonstration data</strong> from the supplied requirements document.")
     for p in all_programs():
         umcet = p.umcet_min_tier.label if p.umcet_min_tier is not None else "—"
