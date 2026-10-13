@@ -100,7 +100,7 @@ def render() -> None:
     ui.render_topbar()
     ui.render_header(local_ai=st.session_state.get("hg_ai_up", True))
     ui.page_header(
-        "Find out if you qualify for CCIS",
+        "Find out if you qualify for UMak",
         "Enter your grades, get a clear verdict in seconds, and an explanation in plain language.",
     )
     ui.render_banner(
@@ -186,7 +186,7 @@ def render() -> None:
         )
     ui.render_source_card(
         "Source of the cutoffs",
-        "CCIS College Requirements document supplied to this prototype (see the CCIS Programs page). "
+        "UMak College Requirements document supplied to this prototype (see the UMak Programs page). "
         "Treated as demonstration data until verified with UMak.",
     )
     ui.render_footer()
