@@ -4,11 +4,18 @@ Streamlit entry point: shared theme, sidebar navigation, page routing.
 """
 from __future__ import annotations
 
+<<<<<<< HEAD
+import streamlit as st
+
+=======
 import time
 from pathlib import Path
 
 import streamlit as st
+>>>>>>> 5de0371fde878572ff711a93600c93874124e23e
 import advisor
+import auth
+import cookies
 import db
 import ui_theme
 from views import auth_page, campus_map, chat, home, programs, settings
@@ -39,19 +46,50 @@ ui_theme.inject_theme()
 
 # ---- Login gate: nothing below runs until the user has signed in ----
 if "hg_user" not in st.session_state:
+<<<<<<< HEAD
+    # Restore the login from the cookie after a page refresh (skips the skeleton).
+    _tok = st.context.cookies.get("hg_token")
+    try:
+        _user = auth.user_from_token(_tok)
+    except Exception:  # noqa: BLE001
+        _user = None
+    if _user:
+        st.session_state["hg_user"] = _user
+        st.session_state["hg_token"] = _tok
+    else:
+        # ADDED: determine whether this is the first login-page load.
+        first_login_load = not st.session_state.get(
+            "hg_login_bootstrapped", False
+        )
+
+        # ADDED: display the login skeleton before database initialization.
+        loading = st.empty()
+=======
     # Determine whether this is the first login-page load.
     first_login_load = not st.session_state.get("hg_login_bootstrapped", False)
 
     # Display the login skeleton before database initialization.
     loading = st.empty()
+>>>>>>> 5de0371fde878572ff711a93600c93874124e23e
 
-    if first_login_load:
-        with loading.container():
-            auth_page.render_loading()
+        if first_login_load:
+            with loading.container():
+                auth_page.render_loading()
 
-    if not _init_db():
-        _init_db.clear()  # retry on the next run instead of caching the failure
+        if not _init_db():
+            _init_db.clear()  # retry on the next run instead of caching the failure
 
+<<<<<<< HEAD
+        if first_login_load:
+            loading.empty()
+            st.session_state["hg_login_bootstrapped"] = True
+
+        # Original login page remains unchanged.
+        auth_page.render()
+        if st.session_state.pop("hg_clear_cookie", False):
+            cookies.write("hg_token", "", 0)  # expire the browser cookie after sign-out
+        st.stop()
+=======
     # Keep the skeleton visible for at least 2 seconds for the demo.
     if first_login_load:
         time.sleep(max(0, 2))
@@ -60,6 +98,7 @@ if "hg_user" not in st.session_state:
 
     auth_page.render()
     st.stop()
+>>>>>>> 5de0371fde878572ff711a93600c93874124e23e
 
 st.session_state["hg_ai_up"] = _ai_up()
 
@@ -83,7 +122,22 @@ with st.sidebar:
         st.page_link(p)
     ui_theme.render_sidebar_identity()
     if st.button("Sign out", icon=":material/logout:", use_container_width=True):
+        _tok = st.session_state.get("hg_token") or st.context.cookies.get("hg_token")
+        try:
+            auth.delete_session(_tok)
+        except Exception:  # noqa: BLE001
+            pass
         st.session_state.clear()  # also wipes grades/chat held in this session
+        st.session_state["hg_clear_cookie"] = True
+        st.session_state["hg_login_bootstrapped"] = True  # no skeleton/2s delay again
         st.rerun()
 
+<<<<<<< HEAD
 nav.run()
+
+# Save the login cookie once, on the first run after sign-in.
+if "hg_set_cookie" in st.session_state:
+    cookies.write("hg_token", st.session_state.pop("hg_set_cookie"), auth.SESSION_DAYS * 86400)
+=======
+nav.run()
+>>>>>>> 5de0371fde878572ff711a93600c93874124e23e
