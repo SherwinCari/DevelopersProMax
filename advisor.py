@@ -51,12 +51,12 @@ def _run_with_timeout(fn: Callable[[], str], timeout: float) -> str:
     return str(box.get("value", "")).strip()
 
 
-def _with_fallback(
+def _try_model(
     build_prompt: Callable[[], str],
-    fallback: str,
     timeout: float = _DEFAULT_TIMEOUT,
-) -> str:
-    """Call the model with ``build_prompt``'s text; return fallback on any failure."""
+    system: str = _SYSTEM,
+) -> Optional[str]:
+    """Return the model's text, or None if Ollama is missing/slow/erroring."""
 
     def call() -> str:
         import ollama  # imported lazily so tests can run without the package
@@ -64,7 +64,7 @@ def _with_fallback(
         resp = ollama.chat(
             model=MODEL,
             messages=[
-                {"role": "system", "content": _SYSTEM},
+                {"role": "system", "content": system},
                 {"role": "user", "content": build_prompt()},
             ],
             options={"temperature": 0.6},
@@ -72,10 +72,33 @@ def _with_fallback(
         return resp["message"]["content"]
 
     try:
-        text = _run_with_timeout(call, timeout)
-        return text or fallback
+        return _run_with_timeout(call, timeout) or None
     except Exception:  # noqa: BLE001 - demo must never crash
-        return fallback
+        return None
+
+
+def _with_fallback(
+    build_prompt: Callable[[], str],
+    fallback: str,
+    timeout: float = _DEFAULT_TIMEOUT,
+) -> str:
+    """Call the model with ``build_prompt``'s text; return fallback on any failure."""
+    return _try_model(build_prompt, timeout) or fallback
+
+
+def ollama_available() -> bool:
+    """Quick check that the Ollama server answers and has MODEL pulled."""
+
+    def probe() -> str:
+        import ollama
+
+        names = [m.model for m in ollama.list().models]
+        return "yes" if any(n and n.split(":")[0] == MODEL.split(":")[0] for n in names) else ""
+
+    try:
+        return bool(_run_with_timeout(probe, 3.0))
+    except Exception:  # noqa: BLE001
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -115,6 +138,53 @@ def explain(student: StudentInput, results: list[ProgramResult]) -> str:
         )
 
     return _with_fallback(prompt, _fallback_explain(qualified, pending, alts, results))
+
+
+def explain_ex(student: StudentInput, results: list[ProgramResult]) -> tuple[str, bool]:
+    """Like :func:`explain` but also reports whether the text came from the model
+    (True) or from the deterministic fallback (False)."""
+    qualified = [r for r in results if r.status is Status.QUALIFIED]
+    pending = [r for r in results if r.status is Status.PENDING_UMCET]
+    fallback = _fallback_explain(qualified, pending, alternatives(results), results)
+    text = explain(student, results)
+    return text, text != fallback
+
+
+_CHAT_SYSTEM = (
+    "You are HeronGuide, a friendly assistant for the University of Makati (UMak) "
+    "College of Computing and Information Sciences (CCIS). Answer GENERAL questions "
+    "about the CCIS programs listed below. Never say whether a specific student "
+    "qualifies; tell them to use the eligibility advisor on the Home page. If you do "
+    "not know something, say so and suggest the UMak Admissions Office. Do not invent "
+    "deadlines, fees, or requirements. Keep answers under 5 sentences."
+)
+
+
+def _catalog_blurb() -> str:
+    from data.programs import all_programs
+
+    return "\n".join(
+        f"- {p.name} ({p.code}, {p.type.label}): GWA>={p.gwa_min}, Math>={p.math_min}, "
+        f"English>={p.english_min}, UMCET>={p.umcet_min_tier.label if p.umcet_min_tier is not None else 'none'}"
+        for p in all_programs()
+    )
+
+
+def chat_answer(question: str) -> tuple[str, bool]:
+    """General Q&A. Returns (answer, from_model)."""
+    text = _try_model(
+        lambda: f"Programs (prototype demo data):\n{_catalog_blurb()}\n\nQuestion: {question}",
+        timeout=_DEFAULT_TIMEOUT,
+        system=_CHAT_SYSTEM,
+    )
+    if text:
+        return text, True
+    return (
+        "The local AI model isn't reachable right now, so I can't answer that "
+        "freely. You can browse the programs and their cutoffs on the CCIS Programs "
+        "page, check your own grades on Home, or ask the UMak Admissions Office.",
+        False,
+    )
 
 
 def recommend_review(student: StudentInput, program: Program) -> str:
