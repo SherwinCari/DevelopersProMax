@@ -179,28 +179,40 @@ _CSS = f"""
     outline: 3px solid {GOLD_SOFT}; outline-offset: 2px;
   }}
 
-  /* ---- hamburger: restyle Streamlit's sidebar-open control (stays fully functional) ---- */
-  [data-testid="stSidebarCollapsedControl"], [data-testid="stExpandSidebarButton"] {{
-    z-index: 1000001;
+  /* ---- hamburger (phones/tablets only): restyle Streamlit's sidebar-open control ---- */
+  @media (max-width: 900px) {{
+    [data-testid="stSidebarCollapsedControl"], [data-testid="stExpandSidebarButton"] {{
+      z-index: 1000001;
+    }}
+    [data-testid="stSidebarCollapsedControl"] button, button[data-testid="stExpandSidebarButton"] {{
+      position: relative; width: 46px; height: 46px; border-radius: 12px;
+      background: {NAVY}; border: 0; box-shadow: 0 4px 14px rgba(11,31,77,0.28);
+      color: transparent; overflow: hidden;
+    }}
+    [data-testid="stSidebarCollapsedControl"] button > *, button[data-testid="stExpandSidebarButton"] > * {{
+      visibility: hidden;
+    }}
+    [data-testid="stSidebarCollapsedControl"] button::before, button[data-testid="stExpandSidebarButton"]::before {{
+      content: ""; position: absolute; left: 13px; right: 13px; top: 15px; height: 2.5px;
+      border-radius: 2px; background: {GOLD};
+      box-shadow: 0 7px 0 {GOLD}, 0 14px 0 {GOLD};
+    }}
+    [data-testid="stSidebarCollapsedControl"] button:hover, button[data-testid="stExpandSidebarButton"]:hover {{
+      background: {NAVY_SOFT};
+    }}
+    [data-testid="stSidebarCollapsedControl"] button:focus-visible, button[data-testid="stExpandSidebarButton"]:focus-visible {{
+      outline: 3px solid {GOLD}; outline-offset: 2px;
+    }}
   }}
-  [data-testid="stSidebarCollapsedControl"] button, button[data-testid="stExpandSidebarButton"] {{
-    position: relative; width: 46px; height: 46px; border-radius: 12px;
-    background: {NAVY}; border: 0; box-shadow: 0 4px 14px rgba(11,31,77,0.28);
-    color: transparent; overflow: hidden;
-  }}
-  [data-testid="stSidebarCollapsedControl"] button > *, button[data-testid="stExpandSidebarButton"] > * {{
-    visibility: hidden;
-  }}
-  [data-testid="stSidebarCollapsedControl"] button::before, button[data-testid="stExpandSidebarButton"]::before {{
-    content: ""; position: absolute; left: 13px; right: 13px; top: 15px; height: 2.5px;
-    border-radius: 2px; background: {GOLD};
-    box-shadow: 0 7px 0 {GOLD}, 0 14px 0 {GOLD};
-  }}
-  [data-testid="stSidebarCollapsedControl"] button:hover, button[data-testid="stExpandSidebarButton"]:hover {{
-    background: {NAVY_SOFT};
-  }}
-  [data-testid="stSidebarCollapsedControl"] button:focus-visible, button[data-testid="stExpandSidebarButton"]:focus-visible {{
-    outline: 3px solid {GOLD}; outline-offset: 2px;
+
+  /* ---- desktop: sidebar is always visible, so no hamburger / collapse controls ---- */
+  @media (min-width: 901px) {{
+    [data-testid="stSidebarCollapsedControl"], [data-testid="stExpandSidebarButton"],
+    [data-testid="stSidebarCollapseButton"], [data-testid="stSidebarHeader"] button {{ display: none !important; }}
+    [data-testid="stSidebar"] {{
+      transform: none !important; margin-left: 0 !important; visibility: visible !important;
+      min-width: 260px !important; max-width: 260px !important;
+    }}
   }}
 
   /* ---- top bar ---- */
