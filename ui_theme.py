@@ -354,7 +354,10 @@ def render_footer() -> None:
     st.markdown(f'<div class="hg-foot">{html.escape(FOOTER_TEXT)}</div>', unsafe_allow_html=True)
 
 
-def render_topbar(name: str = "Heron", subtitle: str = "UMak Student") -> None:
+def render_topbar(name: str | None = None, subtitle: str = "UMak Student") -> None:
+    if not name:
+        full = (st.session_state.get("hg_user") or {}).get("full_name", "")
+        name = full.split()[0] if full.strip() else "Heron"
     st.markdown(
         f"""
         <div class="hg-topbar">
