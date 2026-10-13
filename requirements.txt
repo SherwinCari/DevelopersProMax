@@ -1,0 +1,7 @@
+# HeronGuide — UMak CCIS Smart Admission Advisor (hackathon prototype)
+# Pinned to versions present in the project venv (Python 3.14.6)
+streamlit==1.65.0
+ollama==0.6.3
+pydantic==2.13.5
+pandas==3.0.6
+pytest==8.3.3

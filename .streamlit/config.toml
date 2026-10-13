@@ -1,0 +1,13 @@
+# UMak theme — navy/royal blue primary with gold accent
+[theme]
+primaryColor = "#F2A900"          # UMak gold
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F3F6FB"
+textColor = "#0B1F4D"             # deep navy
+font = "sans serif"
+
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false
