@@ -112,6 +112,10 @@ pages = [
 
 nav = st.navigation(pages, position="hidden")
 
+# App-level header with the logo (click → Home, via st.page_link so the
+# session is kept). Placed after the login gate: the auth screen never sees it.
+ui_theme.render_nav_header(pages[0])
+
 with st.sidebar:
     ui_theme.render_sidebar_brand()
     for p in pages:
