@@ -10,6 +10,7 @@ import advisor
 import db
 import ui_theme
 from views import auth_page, chat, home, programs, settings
+from views import auth_page, campus_map, chat, home, programs, settings
 
 st.set_page_config(
     page_title="HeronGuide — UMak CCIS Admission Advisor",
@@ -49,7 +50,9 @@ pages = [
     st.Page(chat.render, title="Chat", icon=":material/chat_bubble:", url_path="chat"),
     st.Page(programs.render, title="CCIS Programs", icon=":material/school:", url_path="programs"),
     st.Page(settings.render, title="Settings", icon=":material/settings:", url_path="settings"),
+    st.Page(campus_map.render, title="Campus Map", icon=":material/map:", url_path="campus-map"),
 ]
+
 nav = st.navigation(pages, position="hidden")
 
 with st.sidebar:
