@@ -12,6 +12,8 @@ from data.programs import (
 
 
 def test_umcet_tier_ordering_low_to_high():
+    # The catalog uses an expanded 8-tier scale (covering all colleges). What
+    # the rule engine depends on is the relative ordering of the tiers it uses.
     assert (
         UMCETTier.BELOW_AVERAGE
         < UMCETTier.LOW_AVERAGE
@@ -19,13 +21,11 @@ def test_umcet_tier_ordering_low_to_high():
         < UMCETTier.HIGH_AVERAGE
         < UMCETTier.EXCELLENT
     )
-    assert UMCETTier.ordered_labels() == [
-        "Below Average",
-        "Low Average",
-        "Average",
-        "High Average",
-        "Excellent",
-    ]
+    labels = UMCETTier.ordered_labels()
+    # ordered_labels() must be sorted low -> high and contain the core tiers.
+    assert labels == [t.label for t in sorted(UMCETTier)]
+    for core in ("Below Average", "Low Average", "Average", "High Average", "Excellent"):
+        assert core in labels
 
 
 def test_umcet_from_label_roundtrip():
@@ -46,14 +46,12 @@ def test_every_program_has_required_fields():
     for p in all_programs():
         assert p.code and p.name and p.college
         assert isinstance(p.type, ProgramType)
-        # degrees must specify all academic cutoffs + a UMCET floor
-        if p.is_degree:
-            assert p.gwa_min is not None
-            assert p.math_min is not None
-            assert p.english_min is not None
-            assert p.umcet_min_tier is not None
-        else:
-            assert p.gwa_min is not None  # diplomas still have a GWA floor
+        # Across all colleges, programs always have a GWA floor and a UMCET floor.
+        # Per-subject cutoffs (Math/English) are program-specific: some degrees
+        # (e.g. arts programs) screen via portfolio/skills test instead, so
+        # math_min / english_min may legitimately be None.
+        assert p.gwa_min is not None
+        assert p.umcet_min_tier is not None
 
 
 def test_degree_cutoffs_match_pdf():

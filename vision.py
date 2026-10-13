@@ -22,8 +22,35 @@ from typing import Callable, Optional
 from data.programs import GRADE_MAX, GRADE_MIN, SHS_TRACKS
 
 VISION_MODEL = os.environ.get("VISION_MODEL", "llava")
+# Text model used to read grades out of extracted DOCX/PDF text (no vision needed).
+TEXT_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1:8b")
 _DEFAULT_TIMEOUT = 90.0
 _MAX_IMAGE_BYTES = 10 * 1024 * 1024  # 10 MB
+_MAX_DOC_BYTES = 20 * 1024 * 1024  # 20 MB for PDF/DOCX
+# Below this many characters of extracted text, treat a PDF as scanned (image).
+_MIN_TEXT_CHARS = 25
+
+# Supported upload extensions (used by the UI uploader and dispatcher).
+IMAGE_EXTS = ("png", "jpg", "jpeg", "webp")
+DOC_EXTS = ("pdf", "docx")
+SUPPORTED_EXTS = IMAGE_EXTS + DOC_EXTS
+
+_TEXT_SYSTEM = (
+    "You read a student's grades from the text of a report card or grade slip. "
+    "Return ONLY a single JSON object and nothing else. Never guess: use null for "
+    "any value not clearly present. Grades are on a 0-100 scale."
+)
+
+_TEXT_INSTRUCTION = (
+    "From the document text below, extract these fields and return JSON exactly "
+    "in this shape:\n"
+    '{"gwa": number|null, "math": number|null, "english": number|null, '
+    '"shs_track": string|null}\n'
+    "gwa = general weighted average / overall average. "
+    "math = the mathematics subject grade. english = the english subject grade. "
+    "shs_track = the SHS strand if present (e.g. STEM, ICT, ABM, HUMSS), else null. "
+    "Return only the JSON object.\n\n--- DOCUMENT TEXT ---\n"
+)
 
 _SYSTEM = (
     "You read a student's grades from an image of a report card or grade slip. "
@@ -195,7 +222,7 @@ def _parse_extraction(text: str) -> GradeExtraction:
     found = result.filled_fields
     if found:
         result.ok = True
-        note = "Read from your photo: " + ", ".join(found) + ". Please double-check."
+        note = "Read from your file: " + ", ".join(found) + ". Please double-check."
         if dropped:
             note += (
                 " Ignored out-of-range value(s) for "
@@ -252,3 +279,150 @@ def extract_grades(image_bytes: bytes, timeout: float = _DEFAULT_TIMEOUT) -> Gra
             notes="The photo reader isn't responding. Please enter your grades manually.",
         )
     return _parse_extraction(text)
+
+
+# ---------------------------------------------------------------------------
+# Document text extraction (DOCX / text-based PDF) — no model needed
+# ---------------------------------------------------------------------------
+def _docx_to_text(data: bytes) -> str:
+    """Extract text from a .docx file (paragraphs + table cells)."""
+    import io
+
+    import docx  # python-docx
+
+    doc = docx.Document(io.BytesIO(data))
+    parts = [p.text for p in doc.paragraphs if p.text and p.text.strip()]
+    for table in doc.tables:
+        for row in table.rows:
+            cells = [c.text.strip() for c in row.cells if c.text and c.text.strip()]
+            if cells:
+                parts.append(" | ".join(cells))
+    return "\n".join(parts).strip()
+
+
+def _pdf_to_text(data: bytes) -> str:
+    """Extract embedded text from a PDF (empty/short for scanned PDFs)."""
+    import io
+
+    from pypdf import PdfReader
+
+    reader = PdfReader(io.BytesIO(data))
+    pages = []
+    for page in reader.pages:
+        try:
+            pages.append(page.extract_text() or "")
+        except Exception:  # noqa: BLE001 - skip unreadable pages
+            continue
+    return "\n".join(pages).strip()
+
+
+def _pdf_first_page_image(data: bytes) -> Optional[bytes]:
+    """Render the first PDF page to PNG bytes (for scanned PDFs via the vision model)."""
+    try:
+        import fitz  # PyMuPDF
+
+        pdf = fitz.open(stream=data, filetype="pdf")
+        if pdf.page_count == 0:
+            return None
+        page = pdf.load_page(0)
+        pix = page.get_pixmap(dpi=150)
+        return pix.tobytes("png")
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _extract_from_text(text: str, timeout: float) -> GradeExtraction:
+    """Read grades out of plain document text using the TEXT model."""
+    if not text or len(text) < _MIN_TEXT_CHARS:
+        return GradeExtraction(ok=False, notes="No readable text found in the document.")
+
+    def call() -> str:
+        resp = _client().chat(
+            model=TEXT_MODEL,
+            messages=[
+                {"role": "system", "content": _TEXT_SYSTEM},
+                {"role": "user", "content": _TEXT_INSTRUCTION + text[:6000]},
+            ],
+            options={"temperature": 0.1},
+        )
+        return resp["message"]["content"]
+
+    try:
+        raw = _run_with_timeout(call, timeout)
+    except Exception:  # noqa: BLE001
+        return GradeExtraction(
+            ok=False,
+            notes="The document reader isn't responding. Please enter your grades manually.",
+        )
+    return _parse_extraction(raw)
+
+
+def _ext_of(filename: str) -> str:
+    return (filename.rsplit(".", 1)[-1] if "." in filename else "").lower()
+
+
+# ---------------------------------------------------------------------------
+# Unified upload entry point (image, pdf, or docx)
+# ---------------------------------------------------------------------------
+def extract_grades_from_upload(
+    data: bytes, filename: str, timeout: float = _DEFAULT_TIMEOUT
+) -> GradeExtraction:
+    """Read grades from an uploaded image, PDF, or DOCX. Never raises.
+
+    * images  -> vision model (needs VISION_MODEL)
+    * .docx   -> extract text, read with the TEXT model
+    * .pdf    -> try embedded text first; if scanned, render page 1 and use vision
+    """
+    if not data:
+        return GradeExtraction(ok=False, notes="No file was provided.")
+
+    ext = _ext_of(filename)
+
+    if ext in IMAGE_EXTS:
+        return extract_grades(data, timeout)
+
+    if ext not in DOC_EXTS:
+        return GradeExtraction(
+            ok=False,
+            notes="Unsupported file type. Upload a PNG/JPG image, a PDF, or a DOCX.",
+        )
+
+    if len(data) > _MAX_DOC_BYTES:
+        return GradeExtraction(
+            ok=False, notes="That document is larger than 20 MB. Please use a smaller file."
+        )
+
+    if ext == "docx":
+        try:
+            text = _docx_to_text(data)
+        except Exception:  # noqa: BLE001
+            return GradeExtraction(
+                ok=False, notes="Couldn't open that DOCX file. Please enter grades manually."
+            )
+        return _extract_from_text(text, timeout)
+
+    # ext == "pdf": prefer embedded text; fall back to vision on scanned PDFs.
+    try:
+        text = _pdf_to_text(data)
+    except Exception:  # noqa: BLE001
+        text = ""
+
+    if len(text) >= _MIN_TEXT_CHARS:
+        return _extract_from_text(text, timeout)
+
+    # Likely a scanned PDF — render the first page and use the vision model.
+    img = _pdf_first_page_image(data)
+    if img is None:
+        return GradeExtraction(
+            ok=False,
+            notes="This PDF has no readable text and couldn't be converted to an image. "
+            "Please upload a photo or enter grades manually.",
+        )
+    result = extract_grades(img, timeout)
+    if not result.ok and "vision model" in result.notes.lower():
+        # vision model missing: give a clearer message for scanned PDFs
+        result.notes = (
+            "This looks like a scanned PDF, which needs a local vision model "
+            "(e.g. `llava`) to read. Please upload a photo or enter grades manually."
+        )
+    return result

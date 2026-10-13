@@ -33,8 +33,24 @@ def test_degree_qualified_is_celebratory():
 
 
 def test_degree_miss_with_diploma_alt_is_empathetic_not_celebratory():
-    # Missed BS CS by 1% on Math, but still qualifies for diplomas (GWA 90 >= 80).
-    text = _fallback_for(_student(math=84.0))
+    # Build a focused scenario (CCIS only) so the message tone does not depend on
+    # unrelated colleges in the full catalog: the one degree is missed by 1% on
+    # Math, and the only remaining option is a diploma. The fallback must then be
+    # empathetic (not a "great news" celebration of the diploma).
+    from data.programs import get_program
+    from rules import Gap, ProgramResult
+
+    cs = get_program("BSCS")
+    dad = get_program("DAD")
+    degree_fail = ProgramResult(
+        program=cs,
+        status=Status.NOT_QUALIFIED,
+        gaps=[Gap("Math", "84", "85", "Math 84 is below the required 85")],
+    )
+    diploma_ok = ProgramResult(program=dad, status=Status.QUALIFIED, gaps=[])
+    results = [degree_fail, diploma_ok]
+
+    text = _fallback_explain([diploma_ok], [], [diploma_ok], results)
     low = text.lower()
     assert "great news" not in low            # must NOT celebrate the diploma
     assert "don't give up" in low              # empathetic alternative-path tone

@@ -33,12 +33,18 @@ def _load_example(name: str) -> None:
 
 
 @st.cache_data(ttl=30, show_spinner=False)
+@st.cache_data(ttl=30, show_spinner=False)
 def _vision_up() -> bool:
     return vision.vision_available()
 
 
+@st.cache_data(ttl=30, show_spinner=False)
+def _text_ai_up() -> bool:
+    return advisor.ollama_available()
+
+
 def _apply_extraction(ext: "vision.GradeExtraction") -> None:
-    """Seed the manual-entry widgets with values read from a photo."""
+    """Seed the manual-entry widgets with values read from a file."""
     if ext.gwa is not None:
         st.session_state["in_gwa"] = f"{ext.gwa:g}"
     if ext.math is not None:
@@ -47,40 +53,55 @@ def _apply_extraction(ext: "vision.GradeExtraction") -> None:
         st.session_state["in_eng"] = f"{ext.english:g}"
     if ext.shs_track:
         st.session_state["in_track"] = ext.shs_track
-    # A fresh photo invalidates any previous result.
+    # A fresh upload invalidates any previous result.
     st.session_state.pop("hg_eval", None)
 
 
 def _photo_panel() -> None:
-    """'Insert grade photo for faster result' uploader + extraction trigger."""
-    with st.expander("📷 Insert grade photo for faster result", expanded=False):
-        if not _vision_up():
+    """'Insert grades file for faster result' uploader + extraction trigger.
+
+    Accepts an image (photo), a PDF, or a Word (.docx) file. Images need a local
+    vision model; PDFs/DOCX are read via extracted text with the text model
+    (scanned PDFs fall back to the vision model).
+    """
+    with st.expander("📎 Insert grade photo or file for faster result", expanded=False):
+        vision_up = _vision_up()
+        text_up = _text_ai_up()
+        if not vision_up and not text_up:
             st.info(
-                "Photo reading needs a local vision model (e.g. `llava`). "
-                "You can still enter your grades manually below.",
+                "File reading needs a local AI model running (text model for "
+                "PDF/Word, a vision model like `llava` for photos). You can still "
+                "enter your grades manually below.",
                 icon="ℹ️",
             )
             return
 
+        bits = []
+        if vision_up:
+            bits.append("a photo (PNG/JPG/WEBP)")
+        bits.append("a PDF or Word document (.docx)")
         st.caption(
-            "Upload a photo of your grades and the local AI will read them into "
-            "the form. Everything stays on this machine, and you can edit the "
-            "values before evaluating."
+            "Upload " + " or ".join(bits) + " of your grades and the local AI will "
+            "read them into the form. Everything stays on this machine, and you can "
+            "edit the values before evaluating."
         )
-        img = st.file_uploader(
-            "Grade photo",
-            type=["png", "jpg", "jpeg", "webp"],
+
+        # Offer only the types we can actually process right now.
+        allowed = list(vision.DOC_EXTS) + (list(vision.IMAGE_EXTS) if vision_up else [])
+        up = st.file_uploader(
+            "Grades file",
+            type=allowed,
             key="in_photo",
             label_visibility="collapsed",
         )
         read = st.button(
-            "Read grades from photo",
+            "Read grades from file",
             use_container_width=True,
-            disabled=img is None,
+            disabled=up is None,
         )
-        if read and img is not None:
-            with st.spinner("Reading your grades from the photo…"):
-                ext = vision.extract_grades(img.getvalue())
+        if read and up is not None:
+            with st.spinner("Reading your grades from the file…"):
+                ext = vision.extract_grades_from_upload(up.getvalue(), up.name)
             if ext.ok:
                 _apply_extraction(ext)
                 # Stash the note so it survives the rerun that refreshes inputs.

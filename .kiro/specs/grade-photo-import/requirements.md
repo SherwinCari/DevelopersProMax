@@ -3,18 +3,24 @@
 ## Overview
 
 A new capability on the HeronGuide **Home** tab, placed beside the existing
-"Check your eligibility" form: a panel prompting *"Insert grade photo for faster
-result."* A student can upload a photo of their grades (e.g. a report card or SHS
-grade slip). A **vision-capable local AI model** reads the image, extracts the
-relevant grades (GWA, Math, English, and — if present — SHS track), and
+"Check your eligibility" form: a panel prompting *"Insert grade photo or file for
+faster result."* A student can upload a **photo** of their grades (report card or
+SHS grade slip), or a **PDF** or **Word (.docx)** document. The local AI reads the
+relevant grades (GWA, Math, English, and — if present — SHS track) and
 **pre-fills the eligibility form**. The student reviews/corrects the values, then
 runs the normal evaluation.
 
+Routing by file type:
+* **Image** (PNG/JPG/WEBP) → a vision-capable model (e.g. `llava`).
+* **DOCX** → text extracted directly, read by the text model (`llama3.1:8b`).
+* **PDF** → embedded text first (text model); if the PDF is scanned (little/no
+  text), the first page is rendered to an image and read by the vision model.
+
 This feature extends the main spec at `.kiro/specs/heronguide/`. It does **not**
 change how verdicts are decided: the deterministic rule engine in `rules.py`
-remains the only thing that computes eligibility. The vision model only performs
-data entry (reading numbers from an image), and its output is always editable
-before evaluation.
+remains the only thing that computes eligibility. The AI only performs data entry
+(reading numbers from a file), and its output is always editable before
+evaluation.
 
 ## Critical Constraint (read first)
 

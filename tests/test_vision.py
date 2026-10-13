@@ -71,3 +71,63 @@ def test_extract_grades_rejects_oversized_image():
     r = extract_grades(big)
     assert r.ok is False
     assert "10 mb" in r.notes.lower()
+
+
+# ---- document (PDF / DOCX) support ----
+import io  # noqa: E402
+
+from vision import (  # noqa: E402
+    _docx_to_text,
+    _ext_of,
+    _pdf_to_text,
+    extract_grades_from_upload,
+)
+
+
+def test_ext_detection():
+    assert _ext_of("grades.PDF") == "pdf"
+    assert _ext_of("report.docx") == "docx"
+    assert _ext_of("photo.JPG") == "jpg"
+    assert _ext_of("noext") == ""
+
+
+def test_upload_empty_bytes():
+    r = extract_grades_from_upload(b"", "x.pdf")
+    assert r.ok is False
+
+
+def test_upload_unsupported_type():
+    r = extract_grades_from_upload(b"something", "notes.txt")
+    assert r.ok is False
+    assert "unsupported" in r.notes.lower()
+
+
+def test_upload_oversized_doc():
+    big = b"%PDF-" + b"x" * (20 * 1024 * 1024 + 1)
+    r = extract_grades_from_upload(big, "big.pdf")
+    assert r.ok is False
+    assert "20 mb" in r.notes.lower()
+
+
+def test_docx_text_extraction():
+    import docx
+
+    d = docx.Document()
+    d.add_paragraph("Senior High School Report Card")
+    d.add_paragraph("GWA: 90   Math: 88   English: 86   Strand: STEM")
+    buf = io.BytesIO()
+    d.save(buf)
+    text = _docx_to_text(buf.getvalue())
+    assert "GWA" in text and "STEM" in text
+
+
+def test_pdf_text_extraction_roundtrip():
+    from pypdf import PdfWriter
+
+    # A blank PDF has little/no text -> _pdf_to_text returns a short string.
+    w = PdfWriter()
+    w.add_blank_page(width=200, height=200)
+    buf = io.BytesIO()
+    w.write(buf)
+    text = _pdf_to_text(buf.getvalue())
+    assert isinstance(text, str)  # does not raise; scanned-style PDFs yield little text
