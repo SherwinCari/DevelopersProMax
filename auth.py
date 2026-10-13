@@ -9,8 +9,13 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import json
+import os
 import re
 import secrets
+import threading
+import time
+from pathlib import Path
 from typing import Optional
 
 from psycopg import errors as pg_errors
@@ -141,7 +146,64 @@ def login(email: str, password: str):
         return {"id": row["id"], "full_name": row["full_name"], "email": row["email"]}, None
 
 
+# ---------------------------------------------------------------------------
+# Persistent sessions (cookie token -> sessions.json), so a refresh keeps you in
+# ---------------------------------------------------------------------------
+SESSION_DAYS = 14
+_SESSION_FILE = Path(__file__).with_name("sessions.json")
+_lock = threading.Lock()
+
+
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def _load() -> dict:
+    try:
+        data = json.loads(_SESSION_FILE.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _save(data: dict) -> None:
+    tmp = _SESSION_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data), encoding="utf-8")
+    os.replace(tmp, _SESSION_FILE)
+
+
+def create_session(user: dict) -> str:
+    token = secrets.token_urlsafe(32)
+    now = time.time()
+    with _lock:
+        data = {k: v for k, v in _load().items() if v["expires"] > now}
+        data[_hash_token(token)] = {
+            "user": {"id": user["id"], "full_name": user["full_name"], "email": user["email"]},
+            "expires": now + SESSION_DAYS * 86400,
+        }
+        _save(data)
+    return token
+
+
+def user_from_token(token):
+    if not token:
+        return None
+    entry = _load().get(_hash_token(token))
+    if entry and entry["expires"] > time.time():
+        return entry["user"]
+    return None
+
+
+def delete_session(token) -> None:
+    if token:
+        with _lock:
+            data = _load()
+            if data.pop(_hash_token(token), None) is not None:
+                _save(data)
+
+
 __all__ = [
     "register", "login", "validate_signup", "hash_password", "verify_password",
     "normalize_email", "BAD_LOGIN",
+    "create_session", "user_from_token", "delete_session", "SESSION_DAYS",
 ]

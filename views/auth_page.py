@@ -117,6 +117,15 @@ def _db_error(exc: Exception) -> None:
         st.error("Can't reach the database right now. Check that PostgreSQL is running.")
 
 
+def _start_session(user) -> None:
+    """Sign in: remember the token; app.py writes the cookie on the next run."""
+    token = auth.create_session(user)
+    st.session_state["hg_token"] = token
+    st.session_state["hg_set_cookie"] = token
+    st.session_state["hg_user"] = user
+    st.rerun()
+
+
 def _login_form() -> None:
     st.markdown(
         f'<div class="hg-auth-badge">{_svg(_BOOK, 34)}</div>'
@@ -138,8 +147,7 @@ def _login_form() -> None:
         if error:
             st.error(error)
         else:
-            st.session_state["hg_user"] = user
-            st.rerun()
+            _start_session(user)
 
     st.markdown('<div class="hg-auth-switch">Don\'t have an account?</div>', unsafe_allow_html=True)
     st.button("Create an account", on_click=_switch, args=("signup",), use_container_width=True,
@@ -170,8 +178,7 @@ def _signup_form() -> None:
         if error:
             st.error(error)
         else:
-            st.session_state["hg_user"] = user
-            st.rerun()
+            _start_session(user)
 
     st.markdown('<div class="hg-auth-switch">Already have an account?</div>', unsafe_allow_html=True)
     st.button("Back to sign in", on_click=_switch, args=("login",), use_container_width=True,
