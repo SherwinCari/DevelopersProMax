@@ -1,3 +1,4 @@
+
 """Account logic for HeronGuide: validation, password hashing, sign-up, login.
 
 Passwords are hashed with scrypt (Python standard library) using a random
@@ -84,7 +85,7 @@ _DUMMY_HASH = hash_password("not-a-real-password-1")
 # Database operations
 # ---------------------------------------------------------------------------
 def register(full_name: str, email: str, password: str, confirm: str):
-    """Create an account. Returns ``(user_dict, None)`` or ``(None, error)``."""
+    """Create an account. Returns (user_dict, None) or (None, error)."""
     error = validate_signup(full_name, email, password, confirm)
     if error:
         return None, error
@@ -101,7 +102,7 @@ def register(full_name: str, email: str, password: str, confirm: str):
 
 
 def login(email: str, password: str):
-    """Check credentials. Returns ``(user_dict, None)`` or ``(None, error)``."""
+    """Check credentials. Returns (user_dict, None) or (None, error)."""
     email = normalize_email(email)
     if not email or not password:
         return None, "Enter your email and password."
@@ -116,7 +117,7 @@ def login(email: str, password: str):
         ).fetchone()
 
         if row is None:
-            verify_password(password, _DUMMY_HASH)  # timing equalizer
+            verify_password(password, _DUMMY_HASH)
             return None, BAD_LOGIN
 
         if row["is_locked"]:

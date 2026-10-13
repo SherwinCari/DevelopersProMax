@@ -1,3 +1,4 @@
+
 """Home: eligibility form, verdict cards, and the AI explanation panel.
 
 UI only. All verdicts come from ``rules.evaluate``; ``advisor`` merely
@@ -83,8 +84,16 @@ def _results_panel(data: dict) -> None:
     focus_res = next(r for r in results if r.program.code == focus_code)
     if focus_res.status is Status.QUALIFIED:
         with st.expander(f"Topics to review for {focus_res.program.name}"):
-            with st.spinner("Preparing review topics…"):
-                st.markdown(advisor.recommend_review(data["student"], focus_res.program))
+            # Added: show skeleton while review topics are generated.
+            loading = st.empty()
+            with loading.container():
+                ui.render_skeleton(lines=3, title="Preparing review topics")
+                st.caption("Finding topics that may help you prepare…")
+
+            topics = advisor.recommend_review(data["student"], focus_res.program)
+
+            loading.empty()
+            st.markdown(topics)
 
 
 def render() -> None:
@@ -139,9 +148,22 @@ def render() -> None:
                     umcet_tier=None if pending else UMCETTier.from_label(tier),
                     umcet_received=not pending,
                 )
+
+                # Original rule engine remains responsible for every verdict.
                 results = evaluate(student)
-                with st.spinner("Asking your local advisor to explain the result…"):
-                    text, used_ai = advisor.explain_ex(student, results)
+
+                # Added: show skeleton while the AI explains the results.
+                loading = st.empty()
+                with loading.container():
+                    ui.render_skeleton(lines=4, title="Analyzing your results")
+                    st.caption(
+                        "The eligibility verdict is calculated by the rule engine; "
+                        "AI only explains it."
+                    )
+
+                text, used_ai = advisor.explain_ex(student, results)
+
+                loading.empty()
                 st.session_state["hg_eval"] = dict(
                     student=student, results=results, focus=program, explanation=text, used_ai=used_ai,
                 )

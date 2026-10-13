@@ -19,7 +19,7 @@ _CSS = f"""
   [data-testid="stHorizontalBlock"] {{ gap: 0 !important; }}
 
   /* Left brand panel */
-  .st-key-auth_left {{
+  .st-key-auth_left, .st-key-skel_left {{
     background: {ui.NAVY}; min-height: 100vh; padding: 2.6rem 4rem;
     color: #fff; display: flex; flex-direction: column; justify-content: space-between;
   }}
@@ -40,8 +40,8 @@ _CSS = f"""
     display: flex; align-items: center; justify-content: center; color: {ui.GOLD}; }}
 
   /* Right form panel */
-  .st-key-auth_right {{ background: #F7F8FB; min-height: 100vh; padding: 5rem 4rem 3rem; }}
-  .st-key-auth_right > div {{ max-width: 520px; margin: 0 auto; }}
+  .st-key-auth_right, .st-key-skel_right {{ background: #F7F8FB; min-height: 100vh; padding: 5rem 4rem 3rem; }}
+  .st-key-auth_right > div, .st-key-skel_right > div {{ max-width: 520px; margin: 0 auto; }}
   .hg-auth-badge {{ width: 76px; height: 76px; border-radius: 20px; background: #fff;
     box-shadow: 0 6px 24px rgba(11,31,77,.08); display: flex; align-items: center;
     justify-content: center; color: {ui.NAVY}; margin-bottom: 1.6rem; }}
@@ -60,8 +60,8 @@ _CSS = f"""
   .hg-auth-switch {{ text-align: center; color: {ui.MUTED}; margin-top: 1.4rem; }}
 
   @media (max-width: 800px) {{
-    .st-key-auth_left {{ min-height: auto; padding: 2rem 1.5rem; gap: 1.5rem; }}
-    .st-key-auth_right {{ min-height: auto; padding: 2rem 1.5rem; }}
+    .st-key-auth_left, .st-key-skel_left {{ min-height: auto; padding: 2rem 1.5rem; gap: 1.5rem; }}
+    .st-key-auth_right, .st-key-skel_right {{ min-height: auto; padding: 2rem 1.5rem; }}
   }}
 </style>
 """
@@ -186,3 +186,71 @@ def render() -> None:
         _left_panel()
     with right.container(key="auth_right"):
         _login_form() if view == "login" else _signup_form()
+
+
+# ADDED: Login skeleton loading screen.
+# It reuses the real auth layout (same columns + same full-bleed CSS) instead of an
+# iframe, so it lines up exactly with the actual login screen.
+
+_SKEL_CSS = """
+<style>
+  @keyframes hg-shimmer { 0% {background-position: 200% 0;} 100% {background-position: -200% 0;} }
+  .sk { border-radius: 10px; background-size: 200% 100%;
+        animation: hg-shimmer 1.4s ease-in-out infinite; }
+  .sk-d { background-image: linear-gradient(90deg,#1B2D5E 25%,#2B3F73 50%,#1B2D5E 75%); }
+  .sk-l { background-image: linear-gradient(90deg,#E7EBF2 25%,#F8FAFF 50%,#E7EBF2 75%); }
+  .sk-row { display: flex; align-items: center; gap: .8rem; }
+  .sk-feat { display: flex; align-items: center; gap: 1rem; margin-top: .9rem; }
+  .sk-card { background: #fff; border: 1px solid #E7EBF2; border-radius: 16px;
+             padding: 1.5rem; margin-top: 1.8rem; }
+  @media (prefers-reduced-motion: reduce) { .sk { animation: none; } }
+</style>
+"""
+
+
+def _b(cls: str, w: str, h: str, extra: str = "") -> str:
+    return f'<div class="sk {cls}" style="width:{w};height:{h};{extra}"></div>'
+
+
+def render_loading() -> None:
+    """Skeleton that reuses the real auth layout (same columns, same full-bleed CSS)."""
+    st.markdown(_CSS + _SKEL_CSS, unsafe_allow_html=True)
+    left, right = st.columns(2, gap="small")
+
+    with left.container(key="skel_left"):
+        st.markdown(
+            '<div class="sk-row">' + _b("sk-d", "52px", "52px", "border-radius:50%;")
+            + _b("sk-d", "170px", "28px") + "</div>"
+            + "<div>"
+            + _b("sk-d", "260px", "14px", "margin-bottom:1.4rem;")
+            + _b("sk-d", "75%", "52px", "margin-bottom:.8rem;")
+            + _b("sk-d", "55%", "52px", "margin-bottom:1.6rem;")
+            + _b("sk-d", "85%", "14px", "margin-bottom:.7rem;")
+            + _b("sk-d", "60%", "14px")
+            + "</div>"
+            + "<div>"
+            + "".join(
+                '<div class="sk-feat">' + _b("sk-d", "56px", "56px", "border-radius:14px;")
+                + _b("sk-d", "55%", "16px") + "</div>"
+                for _ in range(3)
+            )
+            + "</div>",
+            unsafe_allow_html=True,
+        )
+
+    with right.container(key="skel_right"):
+        st.markdown(
+            _b("sk-l", "76px", "76px", "border-radius:20px;margin-bottom:1.6rem;")
+            + _b("sk-l", "80%", "40px", "margin-bottom:.8rem;")
+            + _b("sk-l", "65%", "16px")
+            + '<div class="sk-card">'
+            + _b("sk-l", "30%", "14px", "margin-bottom:.7rem;")
+            + _b("sk-l", "100%", "50px", "margin-bottom:1.3rem;")
+            + _b("sk-l", "25%", "14px", "margin-bottom:.7rem;")
+            + _b("sk-l", "100%", "50px", "margin-bottom:1.3rem;")
+            + _b("sk-l", "100%", "56px", "border-radius:12px;")
+            + "</div>"
+            + _b("sk-l", "40%", "16px", "margin:1.6rem auto .8rem;")
+            + _b("sk-l", "100%", "52px", "border-radius:12px;"),
+            unsafe_allow_html=True,
+        )
