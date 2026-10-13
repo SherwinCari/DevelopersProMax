@@ -12,8 +12,11 @@ render_advisor, render_state, render_source_card, render_banner, brand_mark
 """
 from __future__ import annotations
 
+import base64
 import html
 import re
+from functools import lru_cache
+from pathlib import Path
 
 import streamlit as st
 
@@ -63,24 +66,24 @@ def icon(name: str, size: int = 14) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Brand mark — original geometric heron + chat-bubble (not the UMak seal)
+# Brand mark — the official HeronGuide logo (assets/heronguide-logo.svg)
 # ---------------------------------------------------------------------------
+LOGO_PATH = Path(__file__).parent / "assets" / "heronguide-logo.svg"
+LOGO_PNG_PATH = Path(__file__).parent / "assets" / "heronguide-logo.png"
+
+
+@lru_cache(maxsize=1)
+def logo_data_uri() -> str:
+    """The logo SVG as a base64 data URI (usable in <img> and CSS url())."""
+    data = base64.b64encode(LOGO_PATH.read_bytes()).decode("ascii")
+    return f"data:image/svg+xml;base64,{data}"
+
+
 def brand_mark(size: int = 44) -> str:
-    """Gold circular badge holding a navy chat bubble whose tail reads as a
-    heron's long beak, with a small gold wing accent."""
+    """The HeronGuide logo at ``size`` px. Single source for every logo in the app."""
     return (
-        f'<span class="hg-logo" role="img" aria-label="HeronGuide logo" '
-        f'style="width:{size}px;height:{size}px">'
-        f'<svg width="{int(size * 0.62)}" height="{int(size * 0.62)}" viewBox="0 0 32 32" '
-        'aria-hidden="true">'
-        # bubble body (navy)
-        f'<path fill="{NAVY}" d="M5 7a4 4 0 0 1 4-4h12a4 4 0 0 1 4 4v8a4 4 0 0 1-4 4h-5l-6 6v-6H9a4 4 0 0 1-4-4z"/>'
-        # beak (navy), pointing right
-        f'<path fill="{NAVY}" d="M25 8l6 3-6 3z"/>'
-        # wing sweep (gold accent)
-        f'<path fill="none" stroke="{GOLD}" stroke-width="2.4" stroke-linecap="round" '
-        'd="M9 15c3-1 6-4 8-8"/>'
-        "</svg></span>"
+        f'<img class="hg-logo" src="{logo_data_uri()}" alt="HeronGuide logo" '
+        f'width="{size}" height="{size}" style="width:{size}px;height:{size}px">'
     )
 
 
@@ -102,61 +105,115 @@ _CSS = f"""
   }}
   .stApp {{ background: {BG_SOFT}; color: {NAVY}; }}
   [data-testid="stHeader"] {{ background: transparent; }}
+  [data-testid="stDecoration"] {{ display: none; }}
   .block-container {{
     padding-top: 1rem; padding-bottom: 2rem; max-width: 1180px;
   }}
   h1, h2, h3 {{ color: {NAVY}; letter-spacing: -0.3px; }}
 
   /* ---- sidebar ---- */
+  [data-testid="stSidebar"] {{ background: {NAVY}; }}
+  /* fixed width only while open, so collapsing still works */
+  [data-testid="stSidebar"][aria-expanded="true"] {{ min-width: 260px; max-width: 260px; }}
+  [data-testid="stSidebar"] > div:first-child {{ background: {NAVY}; }}
+  [data-testid="stSidebar"] * {{ color: #fff; }}
+  [data-testid="stSidebarContent"] {{
+    padding: 0 0.75rem 1rem; display: flex; flex-direction: column;
+  }}
+  /* Streamlit's own sidebar header: slim, with a clear close (x) button */
+  [data-testid="stSidebarHeader"] {{
+    padding: 0.9rem 0.25rem 0.2rem; margin-bottom: 0; height: auto; min-height: 0;
+    justify-content: flex-end;
+  }}
+  [data-testid="stSidebarHeader"] button,
+  [data-testid="stSidebarCollapseButton"] button {{
+    width: 40px; height: 40px; border-radius: 10px; color: #fff;
+    background: rgba(255,255,255,0.08);
+  }}
+  [data-testid="stSidebarHeader"] button:hover,
+  [data-testid="stSidebarCollapseButton"] button:hover {{ background: rgba(255,255,255,0.18); }}
+  .hg-side-brand {{
+    display: flex; align-items: center; gap: 0.75rem; padding: 0.2rem 0.4rem 1.1rem;
+    margin-bottom: 0.6rem; border-bottom: 1px solid rgba(255,255,255,0.12);
+    font-weight: 800; font-size: 1.3rem; letter-spacing: -0.3px;
+  }}
+  .hg-side-brand span {{ color: #fff; line-height: 1.1; }}
+  .hg-side-brand small {{
+    display: block; color: {GOLD}; font-size: 0.62rem; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase; margin-top: 0.2rem;
+  }}
+  .hg-side-id {{
+    margin-top: 1.4rem; padding: 0.9rem 0.4rem 0.6rem;
+    border-top: 1px solid rgba(255,255,255,0.14);
+    font-size: 0.8rem; line-height: 1.4; color: rgba(255,255,255,0.8);
+  }}
+  .hg-side-id strong {{ color: {GOLD_SOFT}; display: block; font-size: 0.85rem; }}
+  [data-testid="stSidebar"] [data-testid="stPageLink"] {{ margin-bottom: 0.2rem; }}
+  [data-testid="stSidebar"] a[data-testid="stPageLink-NavLink"] {{
+    border-radius: 12px; min-height: 46px; padding: 0.55rem 0.85rem; gap: 0.7rem;
+    border-left: 4px solid transparent; transition: background var(--hg-ease);
+    text-decoration: none;
+  }}
+  [data-testid="stSidebar"] a[data-testid="stPageLink-NavLink"] p {{ font-weight: 600; font-size: 0.97rem; }}
+  [data-testid="stSidebar"] a[data-testid="stPageLink-NavLink"]:hover {{ background: rgba(255,255,255,0.08); }}
+  [data-testid="stSidebar"] a[data-testid="stPageLink-NavLink"][aria-current="page"] {{
+    background: {NAVY_SOFT}; border-left-color: {GOLD}; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+  }}
+  [data-testid="stSidebar"] a[data-testid="stPageLink-NavLink"][aria-current="page"] p {{ font-weight: 800; }}
+  [data-testid="stSidebar"] a[data-testid="stPageLink-NavLink"][aria-current="page"] span {{ color: {GOLD_SOFT}; }}
+  [data-testid="stSidebar"] a:focus-visible {{ outline: 3px solid {GOLD_SOFT}; outline-offset: 1px; }}
 
-    /* ---- sidebar secondary buttons (e.g. Sign out) ---- */
+  /* sidebar secondary buttons (e.g. Sign out) */
   [data-testid="stSidebar"] .stButton > button[data-testid="stBaseButton-secondary"] {{
-    background: transparent;
-    border: 1.5px solid {GOLD};
-    border-radius: 12px;
-    min-height: 44px;
-    font-weight: 700;
+    background: transparent; border: 1.5px solid {GOLD}; border-radius: 12px;
+    min-height: 44px; font-weight: 700; margin-top: 0.6rem;
   }}
   [data-testid="stSidebar"] .stButton > button[data-testid="stBaseButton-secondary"],
-  [data-testid="stSidebar"] .stButton > button[data-testid="stBaseButton-secondary"] * {{
-    color: {GOLD_SOFT};
-  }}
+  [data-testid="stSidebar"] .stButton > button[data-testid="stBaseButton-secondary"] * {{ color: {GOLD_SOFT}; }}
   [data-testid="stSidebar"] .stButton > button[data-testid="stBaseButton-secondary"]:hover {{
-    background: {GOLD};
-    border-color: {GOLD};
+    background: {GOLD}; border-color: {GOLD};
   }}
   [data-testid="stSidebar"] .stButton > button[data-testid="stBaseButton-secondary"]:hover,
-  [data-testid="stSidebar"] .stButton > button[data-testid="stBaseButton-secondary"]:hover * {{
-    color: {NAVY};
-  }}
+  [data-testid="stSidebar"] .stButton > button[data-testid="stBaseButton-secondary"]:hover * {{ color: {NAVY}; }}
   [data-testid="stSidebar"] .stButton > button[data-testid="stBaseButton-secondary"]:focus-visible {{
     outline: 3px solid {GOLD_SOFT}; outline-offset: 2px;
   }}
 
-  [data-testid="stSidebar"] {{ background: {NAVY}; min-width: 248px; max-width: 248px; }}
-  [data-testid="stSidebar"] * {{ color: #fff; }}
-  [data-testid="stSidebarContent"] {{ padding: 0.5rem 0.75rem 1rem; }}
-  .hg-side-brand {{
-    display: flex; align-items: center; gap: 0.7rem; padding: 0.6rem 0.4rem 1.2rem;
-    font-weight: 800; font-size: 1.25rem;
+  /* ---- hamburger (phones/tablets only): restyle Streamlit's sidebar-open control ---- */
+  @media (max-width: 900px) {{
+    [data-testid="stSidebarCollapsedControl"], [data-testid="stExpandSidebarButton"] {{
+      z-index: 1000001;
+    }}
+    [data-testid="stSidebarCollapsedControl"] button, button[data-testid="stExpandSidebarButton"] {{
+      position: relative; width: 46px; height: 46px; border-radius: 12px;
+      background: {NAVY}; border: 0; box-shadow: 0 4px 14px rgba(11,31,77,0.28);
+      color: transparent; overflow: hidden;
+    }}
+    [data-testid="stSidebarCollapsedControl"] button > *, button[data-testid="stExpandSidebarButton"] > * {{
+      visibility: hidden;
+    }}
+    [data-testid="stSidebarCollapsedControl"] button::before, button[data-testid="stExpandSidebarButton"]::before {{
+      content: ""; position: absolute; left: 13px; right: 13px; top: 15px; height: 2.5px;
+      border-radius: 2px; background: {GOLD};
+      box-shadow: 0 7px 0 {GOLD}, 0 14px 0 {GOLD};
+    }}
+    [data-testid="stSidebarCollapsedControl"] button:hover, button[data-testid="stExpandSidebarButton"]:hover {{
+      background: {NAVY_SOFT};
+    }}
+    [data-testid="stSidebarCollapsedControl"] button:focus-visible, button[data-testid="stExpandSidebarButton"]:focus-visible {{
+      outline: 3px solid {GOLD}; outline-offset: 2px;
+    }}
   }}
-  .hg-side-id {{
-    margin-top: 2rem; padding: 0.9rem 0.4rem 0;
-    border-top: 1px solid rgba(255,255,255,0.14);
-    font-size: 0.8rem; line-height: 1.35; color: rgba(255,255,255,0.8);
+
+  /* ---- desktop: sidebar is always visible, so no hamburger / collapse controls ---- */
+  @media (min-width: 901px) {{
+    [data-testid="stSidebarCollapsedControl"], [data-testid="stExpandSidebarButton"],
+    [data-testid="stSidebarCollapseButton"], [data-testid="stSidebarHeader"] button {{ display: none !important; }}
+    [data-testid="stSidebar"] {{
+      transform: none !important; margin-left: 0 !important; visibility: visible !important;
+      min-width: 260px !important; max-width: 260px !important;
+    }}
   }}
-  .hg-side-id strong {{ color: {GOLD_SOFT}; display: block; font-size: 0.85rem; }}
-  [data-testid="stSidebar"] a[data-testid="stPageLink-NavLink"] {{
-    border-radius: 12px; min-height: 44px; padding: 0.55rem 0.8rem;
-    border-left: 4px solid transparent; transition: background var(--hg-ease);
-  }}
-  [data-testid="stSidebar"] a[data-testid="stPageLink-NavLink"]:hover {{
-    background: rgba(255,255,255,0.08);
-  }}
-  [data-testid="stSidebar"] a[data-testid="stPageLink-NavLink"][aria-current="page"] {{
-    background: {NAVY_SOFT}; border-left-color: {GOLD}; font-weight: 700;
-  }}
-  [data-testid="stSidebar"] a:focus-visible {{ outline: 3px solid {GOLD_SOFT}; outline-offset: 1px; }}
 
   /* ---- top bar ---- */
   .hg-topbar {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.9rem; }}
@@ -178,11 +235,7 @@ _CSS = f"""
   .hg-header .txt {{ min-width: 0; }}
   .hg-header h1 {{ margin: 0; padding: 0; font-size: 1.9rem; font-weight: 800; color: #fff; line-height: 1.15; }}
   .hg-header p {{ margin: 0.3rem 0 0; opacity: 0.94; font-size: 1.02rem; color: #fff; }}
-  .hg-logo {{
-    flex: none; background: {GOLD}; border-radius: 50%;
-    display: inline-flex; align-items: center; justify-content: center;
-    box-shadow: 0 0 0 4px rgba(242,169,0,0.25);
-  }}
+  .hg-logo {{ flex: none; display: inline-block; object-fit: contain; }}
   .hg-badges {{ margin-top: 0.9rem; display: flex; gap: 0.5rem; flex-wrap: wrap; }}
   .hg-badge {{
     display: inline-flex; align-items: center; gap: 0.35rem;
@@ -299,6 +352,14 @@ _CSS = f"""
 
   .hg-foot {{ color: {MUTED}; font-size: 0.8rem; margin-top: 2.2rem; text-align: center; }}
 
+  @media (max-width: 900px) {{
+    /* sidebar becomes an overlay drawer; keep it readable and dim the page behind it */
+    [data-testid="stSidebar"][aria-expanded="true"] {{
+      min-width: min(300px, 86vw); max-width: min(300px, 86vw);
+      box-shadow: 8px 0 32px rgba(11,31,77,0.35);
+    }}
+    .block-container {{ padding-top: 4rem; }}
+  }}
   @media (max-width: 640px) {{
     .block-container {{ padding-left: 1rem; padding-right: 1rem; }}
     .hg-header {{ padding: 1.1rem 1.1rem; flex-direction: column; }}
@@ -397,7 +458,7 @@ def render_topbar(name: str | None = None, subtitle: str = "UMak Student") -> No
 
 def render_sidebar_brand() -> None:
     st.markdown(
-        f'<div class="hg-side-brand">{brand_mark(40)}<span>HeronGuide</span></div>',
+        f'<div class="hg-side-brand">{brand_mark(44)}<span>HeronGuide<small>UMak CCIS</small></span></div>',
         unsafe_allow_html=True,
     )
 

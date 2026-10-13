@@ -12,19 +12,54 @@ import ui_theme as ui
 
 _CSS = f"""
 <style>
-  /* Full-bleed auth screen: no sidebar, no top bar, no page padding */
+  /* Full-bleed auth screen: no sidebar, no header/toolbar/decoration, no page padding */
   [data-testid="stSidebar"], [data-testid="stSidebarCollapsedControl"],
-  header[data-testid="stHeader"] {{ display: none !important; }}
-  .block-container {{ padding: 0 !important; max-width: 100% !important; }}
+  [data-testid="stExpandSidebarButton"], header, [data-testid="stHeader"],
+  [data-testid="stAppHeader"], [data-testid="stToolbar"],
+  [data-testid="stDecoration"], [data-testid="stStatusWidget"] {{ display: none !important; }}
+  .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"],
+  [data-testid="stMain"] > div {{ padding-top: 0 !important; margin-top: 0 !important; }}
+  .block-container, [data-testid="stMainBlockContainer"], .stMainBlockContainer {{
+    padding: 0 !important; max-width: 100% !important; }}
   [data-testid="stHorizontalBlock"] {{ gap: 0 !important; }}
+  /* <style> blocks are wrapped in empty element containers; they were adding a
+     blank strip (flex gap) above the panels, so take them out of the layout */
+  [data-testid="stElementContainer"]:has(style), .stElementContainer:has(style),
+  .element-container:has(style) {{ display: none !important; }}
+  [data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"],
+  .block-container > [data-testid="stVerticalBlock"] {{ gap: 0 !important; }}
+  html, body {{ overflow-x: hidden; }}
 
   /* Left brand panel */
   .st-key-auth_left, .st-key-skel_left {{
+    position: relative; overflow: hidden;
     background: {ui.NAVY}; min-height: 100vh; padding: 2.6rem 4rem;
     color: #fff; display: flex; flex-direction: column; justify-content: space-between;
   }}
+  /* Logo as a faint background watermark */
+  .st-key-auth_left::before {{
+    content: ""; position: absolute; z-index: 0; pointer-events: none;
+    width: min(88%, 620px); aspect-ratio: 1; right: -14%; bottom: -10%;
+    background: url("{ui.logo_data_uri()}") center / contain no-repeat;
+    opacity: 0.10;
+  }}
+  .st-key-auth_left > * {{ position: relative; z-index: 1; }}
   .hg-auth-brand {{ display: flex; align-items: center; gap: .8rem;
     font-size: 1.7rem; font-weight: 800; letter-spacing: -.3px; }}
+  .hg-auth-mobile {{ display: none; }}
+  .hg-auth-mobile summary {{ list-style: none; cursor: pointer; }}
+  .hg-auth-mobile summary::-webkit-details-marker {{ display: none; }}
+  .hg-burger {{ position: relative; width: 44px; height: 44px; border-radius: 12px;
+    border: 1px solid rgba(255,255,255,.22); background: rgba(255,255,255,.06); flex: none; }}
+  .hg-burger::before {{ content: ""; position: absolute; left: 12px; right: 12px; top: 14px;
+    height: 2.5px; border-radius: 2px; background: {ui.GOLD};
+    box-shadow: 0 7px 0 {ui.GOLD}, 0 14px 0 {ui.GOLD}; }}
+  .hg-auth-mobile[open] .hg-burger {{ background: {ui.GOLD}; }}
+  .hg-auth-mobile[open] .hg-burger::before {{ background: {ui.NAVY}; box-shadow: 0 7px 0 {ui.NAVY}, 0 14px 0 {ui.NAVY}; }}
+  .hg-auth-mobile summary:focus-visible {{ outline: 3px solid {ui.GOLD_SOFT}; outline-offset: 3px; border-radius: 12px; }}
+  .hg-mob-bar {{ display: flex; align-items: center; justify-content: space-between; gap: 1rem; }}
+  .hg-mob-bar .hg-auth-brand {{ font-size: 1.35rem; }}
+  .hg-mob-menu {{ padding: 1.2rem 0 .4rem; }}
   .hg-auth-eyebrow {{ color: {ui.GOLD}; font-weight: 700; font-size: .8rem;
     letter-spacing: .02em; text-transform: uppercase; display: flex;
     align-items: center; gap: .8rem; margin-bottom: 1.4rem; }}
@@ -40,7 +75,7 @@ _CSS = f"""
     display: flex; align-items: center; justify-content: center; color: {ui.GOLD}; }}
 
   /* Right form panel */
-  .st-key-auth_right, .st-key-skel_right {{ background: #F7F8FB; min-height: 100vh; padding: 5rem 4rem 3rem; }}
+  .st-key-auth_right, .st-key-skel_right {{ background: #F7F8FB; min-height: 100vh; padding: 3.5rem 4rem 2rem; }}
   .st-key-auth_right > div, .st-key-skel_right > div {{ max-width: 520px; margin: 0 auto; }}
   .hg-auth-badge {{ width: 76px; height: 76px; border-radius: 20px; background: #fff;
     box-shadow: 0 6px 24px rgba(11,31,77,.08); display: flex; align-items: center;
@@ -57,11 +92,26 @@ _CSS = f"""
     padding: .95rem 1rem; font-weight: 700; font-size: 1.05rem; }}
   .st-key-auth_right [data-testid="stFormSubmitButton"] button:hover {{
     background: {ui.NAVY_SOFT}; color: {ui.GOLD_SOFT}; }}
-  .hg-auth-switch {{ text-align: center; color: {ui.MUTED}; margin-top: 1.4rem; }}
+  /* spacing inside the form panel */
+  .st-key-auth_right [data-testid="stVerticalBlock"] {{ gap: 1rem; }}
+  .st-key-auth_right [data-testid="stForm"] [data-testid="stVerticalBlock"] {{ gap: 1.1rem; }}
+  .st-key-auth_right [data-testid="stFormSubmitButton"] {{ margin-top: .5rem; }}
+  .hg-auth-switch {{ text-align: center; color: {ui.MUTED}; margin: 1.2rem 0 .2rem; }}
+  .st-key-to_signup button, .st-key-to_login button {{
+    min-height: 52px; border-radius: 12px; background: #fff; border: 1px solid #cfd8e8; }}
 
   @media (max-width: 800px) {{
-    .st-key-auth_left, .st-key-skel_left {{ min-height: auto; padding: 2rem 1.5rem; gap: 1.5rem; }}
-    .st-key-auth_right, .st-key-skel_right {{ min-height: auto; padding: 2rem 1.5rem; }}
+    .st-key-auth_left, .st-key-skel_left {{ min-height: auto; padding: 1rem 1.25rem; }}
+    .st-key-auth_left::before {{ width: 260px; right: -60px; bottom: -90px; }}
+    .hg-auth-desktop {{ display: none; }}
+    .hg-auth-mobile {{ display: block; }}
+    .hg-auth-title {{ font-size: 2rem; }}
+    .hg-auth-feat {{ font-size: 1rem; }}
+    .hg-auth-feat .ico {{ width: 48px; height: 48px; }}
+    .st-key-auth_right, .st-key-skel_right {{ min-height: auto; padding: 2rem 1.25rem 2.5rem; }}
+    .hg-auth-badge {{ width: 64px; height: 64px; margin-bottom: 1.2rem; }}
+    .hg-auth-h {{ font-size: 1.9rem; }}
+    .hg-auth-sub {{ font-size: 1rem; margin-bottom: 1.3rem; }}
   }}
 </style>
 """
@@ -91,16 +141,30 @@ def _left_panel() -> None:
         f'<div class="hg-auth-feat"><span class="ico">{_svg(_FEATURE_ICONS[k], 24)}</span>{html.escape(t)}</div>'
         for k, t in feats
     )
-    st.markdown(
-        f"""
-        <div class="hg-auth-brand">{ui.brand_mark(52)}<span>HeronGuide</span></div>
+    hero = f"""
         <div>
-          <div class="hg-auth-eyebrow">UMak CCIS · Smart Admission Advisor</div>
+          <div class="hg-auth-eyebrow">UMak · Smart Admission Advisor</div>
           <h1 class="hg-auth-title">Your next chapter<br>starts <em>here.</em></h1>
           <p class="hg-auth-lead">A clearer path to your future. Get honest guidance and
-             find where you belong at CCIS.</p>
+             find where you belong at UMak.</p>
         </div>
         <div>{feat_html}</div>
+    """.strip()
+    st.markdown(
+        f"""
+        <div class="hg-auth-desktop">
+          <div class="hg-auth-brand"><span>HeronGuide</span></div>
+          {hero}
+        </div>
+        <details class="hg-auth-mobile">
+          <summary aria-label="Toggle menu">
+            <div class="hg-mob-bar">
+              <div class="hg-auth-brand">{ui.brand_mark(36)}<span>HeronGuide</span></div>
+              <span class="hg-burger" aria-hidden="true"></span>
+            </div>
+          </summary>
+          <div class="hg-mob-menu">{hero}</div>
+        </details>
         """,
         unsafe_allow_html=True,
     )
@@ -158,7 +222,7 @@ def _signup_form() -> None:
     st.markdown(
         f'<div class="hg-auth-badge">{_svg(_BOOK, 34)}</div>'
         '<h2 class="hg-auth-h">Create your account</h2>'
-        '<div class="hg-auth-sub">Join HeronGuide and find your place at CCIS.</div>',
+        '<div class="hg-auth-sub">Join HeronGuide and find your place at UMak.</div>',
         unsafe_allow_html=True,
     )
     with st.form("signup_form", border=False):
@@ -226,8 +290,7 @@ def render_loading() -> None:
 
     with left.container(key="skel_left"):
         st.markdown(
-            '<div class="sk-row">' + _b("sk-d", "52px", "52px", "border-radius:50%;")
-            + _b("sk-d", "170px", "28px") + "</div>"
+            '<div class="sk-row">' + _b("sk-d", "170px", "28px") + "</div>"
             + "<div>"
             + _b("sk-d", "260px", "14px", "margin-bottom:1.4rem;")
             + _b("sk-d", "75%", "52px", "margin-bottom:.8rem;")
