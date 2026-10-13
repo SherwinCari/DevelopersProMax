@@ -76,7 +76,7 @@ st.session_state["hg_ai_up"] = _ai_up()
 pages = [
     st.Page(home.render, title="Home", icon=":material/home:", url_path="home", default=True),
     st.Page(chat.render, title="Chat", icon=":material/chat_bubble:", url_path="chat"),
-    st.Page(programs.render, title="CCIS Programs", icon=":material/school:", url_path="programs"),
+    st.Page(programs.render, title="UMak Programs", icon=":material/school:", url_path="programs"),
     st.Page(settings.render, title="Settings", icon=":material/settings:", url_path="settings"),
     st.Page(campus_map.render, title="Campus Map", icon=":material/map:", url_path="campus-map"),
 ]
