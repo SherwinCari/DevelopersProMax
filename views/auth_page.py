@@ -22,7 +22,13 @@ _CSS = f"""
   .block-container, [data-testid="stMainBlockContainer"], .stMainBlockContainer {{
     padding: 0 !important; max-width: 100% !important; }}
   [data-testid="stHorizontalBlock"] {{ gap: 0 !important; }}
-  [data-testid="stMain"] [data-testid="stVerticalBlock"] {{ gap: 0; }}
+  /* <style> blocks are wrapped in empty element containers; they were adding a
+     blank strip (flex gap) above the panels, so take them out of the layout */
+  [data-testid="stElementContainer"]:has(style), .stElementContainer:has(style),
+  .element-container:has(style) {{ display: none !important; }}
+  [data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"],
+  .block-container > [data-testid="stVerticalBlock"] {{ gap: 0 !important; }}
+  html, body {{ overflow-x: hidden; }}
 
   /* Left brand panel */
   .st-key-auth_left, .st-key-skel_left {{
@@ -69,7 +75,7 @@ _CSS = f"""
     display: flex; align-items: center; justify-content: center; color: {ui.GOLD}; }}
 
   /* Right form panel */
-  .st-key-auth_right, .st-key-skel_right {{ background: #F7F8FB; min-height: 100vh; padding: 5rem 4rem 3rem; }}
+  .st-key-auth_right, .st-key-skel_right {{ background: #F7F8FB; min-height: 100vh; padding: 3.5rem 4rem 2rem; }}
   .st-key-auth_right > div, .st-key-skel_right > div {{ max-width: 520px; margin: 0 auto; }}
   .hg-auth-badge {{ width: 76px; height: 76px; border-radius: 20px; background: #fff;
     box-shadow: 0 6px 24px rgba(11,31,77,.08); display: flex; align-items: center;
@@ -86,7 +92,13 @@ _CSS = f"""
     padding: .95rem 1rem; font-weight: 700; font-size: 1.05rem; }}
   .st-key-auth_right [data-testid="stFormSubmitButton"] button:hover {{
     background: {ui.NAVY_SOFT}; color: {ui.GOLD_SOFT}; }}
-  .hg-auth-switch {{ text-align: center; color: {ui.MUTED}; margin-top: 1.4rem; }}
+  /* spacing inside the form panel */
+  .st-key-auth_right [data-testid="stVerticalBlock"] {{ gap: 1rem; }}
+  .st-key-auth_right [data-testid="stForm"] [data-testid="stVerticalBlock"] {{ gap: 1.1rem; }}
+  .st-key-auth_right [data-testid="stFormSubmitButton"] {{ margin-top: .5rem; }}
+  .hg-auth-switch {{ text-align: center; color: {ui.MUTED}; margin: 1.2rem 0 .2rem; }}
+  .st-key-to_signup button, .st-key-to_login button {{
+    min-height: 52px; border-radius: 12px; background: #fff; border: 1px solid #cfd8e8; }}
 
   @media (max-width: 800px) {{
     .st-key-auth_left, .st-key-skel_left {{ min-height: auto; padding: 1rem 1.25rem; }}

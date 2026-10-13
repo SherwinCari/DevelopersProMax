@@ -5,8 +5,10 @@ Streamlit entry point: shared theme, sidebar navigation, page routing.
 """
 from __future__ import annotations
 
-import streamlit as st
 import time
+from pathlib import Path
+
+import streamlit as st
 import advisor
 import db
 import ui_theme
@@ -15,7 +17,7 @@ from views import auth_page, campus_map, chat, home, programs, settings
 
 st.set_page_config(
     page_title="HeronGuide — UMak CCIS Admission Advisor",
-    page_icon=str(ui_theme.LOGO_PNG_PATH),
+    page_icon=str(Path(__file__).parent / "assets" / "heronguide-logo.png"),
     layout="wide",
 )
 
