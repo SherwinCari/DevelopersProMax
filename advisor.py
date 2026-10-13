@@ -6,6 +6,7 @@ deterministic fallback, so a slow or offline Ollama can never break a live demo.
 """
 from __future__ import annotations
 
+import os
 import threading
 from typing import Callable, Optional
 
@@ -13,7 +14,35 @@ from data.programs import Program
 from rules import ProgramResult, Status, StudentInput, alternatives
 
 MODEL = "llama3.1:8b"
-_DEFAULT_TIMEOUT = 25.0
+# Generous enough to cover a cold model load (loading the ~5GB model into memory
+# can take up to a minute on first call); subsequent calls are fast.
+_DEFAULT_TIMEOUT = 90.0
+
+def _resolve_host() -> str:
+    """Pick a host the client can actually CONNECT to.
+
+    Two Windows gotchas are handled here:
+    * ``OLLAMA_HOST`` is often set to ``0.0.0.0:11434`` (a server *bind* address);
+      you cannot connect to ``0.0.0.0``, so rewrite it to ``127.0.0.1``.
+    * Bare ``localhost`` may resolve to IPv6 (::1) first while Ollama listens on
+      IPv4, so prefer the explicit loopback IP.
+    """
+    raw = (os.environ.get("OLLAMA_HOST") or "").strip()
+    if not raw:
+        return "http://127.0.0.1:11434"
+    host = raw if "://" in raw else f"http://{raw}"
+    return host.replace("0.0.0.0", "127.0.0.1").replace("localhost", "127.0.0.1")
+
+
+OLLAMA_HOST = _resolve_host()
+
+
+def _client():
+    """Return an Ollama client bound to the explicit host (imported lazily so
+    tests and the fallback path don't require the package)."""
+    import ollama
+
+    return ollama.Client(host=OLLAMA_HOST)
 
 # System prompt shared by all advisor calls. The constraint against changing
 # verdicts is stated explicitly and repeatedly.
@@ -59,9 +88,7 @@ def _try_model(
     """Return the model's text, or None if Ollama is missing/slow/erroring."""
 
     def call() -> str:
-        import ollama  # imported lazily so tests can run without the package
-
-        resp = ollama.chat(
+        resp = _client().chat(
             model=MODEL,
             messages=[
                 {"role": "system", "content": system},
@@ -90,13 +117,32 @@ def ollama_available() -> bool:
     """Quick check that the Ollama server answers and has MODEL pulled."""
 
     def probe() -> str:
-        import ollama
-
-        names = [m.model for m in ollama.list().models]
+        names = [m.model for m in _client().list().models]
         return "yes" if any(n and n.split(":")[0] == MODEL.split(":")[0] for n in names) else ""
 
     try:
         return bool(_run_with_timeout(probe, 3.0))
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def warm_up(timeout: float = 120.0) -> bool:
+    """Preload the model into memory so later demo responses are fast.
+
+    Returns True if the model answered a trivial prompt. Safe to call once at
+    startup; if Ollama is slow or offline it simply returns False.
+    """
+
+    def ping() -> str:
+        resp = _client().chat(
+            model=MODEL,
+            messages=[{"role": "user", "content": "Reply with the word READY."}],
+            options={"num_predict": 3},
+        )
+        return resp["message"]["content"]
+
+    try:
+        return bool(_run_with_timeout(ping, timeout))
     except Exception:  # noqa: BLE001
         return False
 
@@ -235,20 +281,27 @@ def interview_feedback(program: Program, question: str, answer: str) -> str:
 # Deterministic fallbacks (used when Ollama is slow / offline / erroring)
 # ---------------------------------------------------------------------------
 def _fallback_explain(qualified, pending, alts, results) -> str:
-    if qualified:
-        names = ", ".join(r.program.name for r in qualified)
+    # Celebrate only when an actual DEGREE is attained or pending. Diploma-only
+    # qualifications are handled by the empathetic alternative-path branch below,
+    # so a near-miss degree applicant never gets a falsely cheerful message.
+    degree_qualified = [r for r in qualified if r.program.is_degree]
+    degree_pending = [r for r in pending if r.program.is_degree]
+
+    if degree_qualified:
+        names = ", ".join(r.program.name for r in degree_qualified)
         return (
             f"Great news — based on your grades and UMCET rating, you qualify for "
             f"{names}. That's a strong result. Review the recommended topics below "
             "and try the quick practice interview to get ready for enrollment day."
         )
-    if pending:
-        names = ", ".join(r.program.name for r in pending)
+    if degree_pending:
+        names = ", ".join(r.program.name for r in degree_pending)
         return (
             f"Your grades meet the requirements for {names}. Once you receive your "
             "UMCET rating, come back and select it to confirm your qualification."
         )
-    # not qualified for any degree
+
+    # No degree is attainable — explain the gap kindly and route to alternatives.
     missing = []
     for r in results:
         if r.program.is_degree and r.gaps:

@@ -9,6 +9,7 @@ import streamlit as st
 
 import advisor
 import ui_theme as ui
+import vision
 from data.programs import GRADE_MAX, GRADE_MIN, SHS_TRACKS, UMCETTier, all_programs
 from rules import ProgramResult, Status, StudentInput, evaluate
 
@@ -29,6 +30,68 @@ def _load_example(name: str) -> None:
         in_pending=ex["pending"], in_tier=ex["tier"],
     )
     st.session_state.pop("hg_eval", None)
+
+
+@st.cache_data(ttl=30, show_spinner=False)
+def _vision_up() -> bool:
+    return vision.vision_available()
+
+
+def _apply_extraction(ext: "vision.GradeExtraction") -> None:
+    """Seed the manual-entry widgets with values read from a photo."""
+    if ext.gwa is not None:
+        st.session_state["in_gwa"] = f"{ext.gwa:g}"
+    if ext.math is not None:
+        st.session_state["in_math"] = f"{ext.math:g}"
+    if ext.english is not None:
+        st.session_state["in_eng"] = f"{ext.english:g}"
+    if ext.shs_track:
+        st.session_state["in_track"] = ext.shs_track
+    # A fresh photo invalidates any previous result.
+    st.session_state.pop("hg_eval", None)
+
+
+def _photo_panel() -> None:
+    """'Insert grade photo for faster result' uploader + extraction trigger."""
+    with st.expander("📷 Insert grade photo for faster result", expanded=False):
+        if not _vision_up():
+            st.info(
+                "Photo reading needs a local vision model (e.g. `llava`). "
+                "You can still enter your grades manually below.",
+                icon="ℹ️",
+            )
+            return
+
+        st.caption(
+            "Upload a photo of your grades and the local AI will read them into "
+            "the form. Everything stays on this machine, and you can edit the "
+            "values before evaluating."
+        )
+        img = st.file_uploader(
+            "Grade photo",
+            type=["png", "jpg", "jpeg", "webp"],
+            key="in_photo",
+            label_visibility="collapsed",
+        )
+        read = st.button(
+            "Read grades from photo",
+            use_container_width=True,
+            disabled=img is None,
+        )
+        if read and img is not None:
+            with st.spinner("Reading your grades from the photo…"):
+                ext = vision.extract_grades(img.getvalue())
+            if ext.ok:
+                _apply_extraction(ext)
+                # Stash the note so it survives the rerun that refreshes inputs.
+                st.session_state["hg_vision_notes"] = ext.notes
+                st.rerun()
+            else:
+                st.warning(ext.notes, icon="⚠️")
+
+        notes = st.session_state.pop("hg_vision_notes", None)
+        if notes:
+            st.success(notes + " Verify the values below, then press Evaluate.", icon="✅")
 
 
 def _parse(label: str, raw: str) -> tuple[float | None, str | None]:
@@ -104,6 +167,7 @@ def render() -> None:
         with st.container(border=True):
             st.markdown("#### Check your eligibility")
             st.caption(f"Use your Senior High School grades ({GRADE_MIN:g}–{GRADE_MAX:g} scale).")
+            _photo_panel()
             program = st.selectbox("Program", list(_PROGRAMS), key="in_program")
             c1, c2 = st.columns(2)
             gwa = c1.text_input("General weighted average", placeholder="e.g. 88", key="in_gwa")

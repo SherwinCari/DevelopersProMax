@@ -22,8 +22,19 @@ def _ai_up() -> bool:
     return advisor.ollama_available()
 
 
+@st.cache_resource(show_spinner=False)
+def _warm_model() -> bool:
+    """Preload the model once per server session so demo replies are fast."""
+    import threading
+
+    threading.Thread(target=advisor.warm_up, daemon=True).start()
+    return True
+
+
 ui_theme.inject_theme()
 st.session_state["hg_ai_up"] = _ai_up()
+if st.session_state["hg_ai_up"]:
+    _warm_model()
 
 pages = [
     st.Page(home.render, title="Home", icon=":material/home:", url_path="home", default=True),
