@@ -108,6 +108,31 @@ _CSS = f"""
   h1, h2, h3 {{ color: {NAVY}; letter-spacing: -0.3px; }}
 
   /* ---- sidebar ---- */
+
+    /* ---- sidebar secondary buttons (e.g. Sign out) ---- */
+  [data-testid="stSidebar"] .stButton > button[data-testid="stBaseButton-secondary"] {{
+    background: transparent;
+    border: 1.5px solid {GOLD};
+    border-radius: 12px;
+    min-height: 44px;
+    font-weight: 700;
+  }}
+  [data-testid="stSidebar"] .stButton > button[data-testid="stBaseButton-secondary"],
+  [data-testid="stSidebar"] .stButton > button[data-testid="stBaseButton-secondary"] * {{
+    color: {GOLD_SOFT};
+  }}
+  [data-testid="stSidebar"] .stButton > button[data-testid="stBaseButton-secondary"]:hover {{
+    background: {GOLD};
+    border-color: {GOLD};
+  }}
+  [data-testid="stSidebar"] .stButton > button[data-testid="stBaseButton-secondary"]:hover,
+  [data-testid="stSidebar"] .stButton > button[data-testid="stBaseButton-secondary"]:hover * {{
+    color: {NAVY};
+  }}
+  [data-testid="stSidebar"] .stButton > button[data-testid="stBaseButton-secondary"]:focus-visible {{
+    outline: 3px solid {GOLD_SOFT}; outline-offset: 2px;
+  }}
+
   [data-testid="stSidebar"] {{ background: {NAVY}; min-width: 248px; max-width: 248px; }}
   [data-testid="stSidebar"] * {{ color: #fff; }}
   [data-testid="stSidebarContent"] {{ padding: 0.5rem 0.75rem 1rem; }}
