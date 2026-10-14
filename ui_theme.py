@@ -353,38 +353,6 @@ _CSS = f"""
 
   .hg-foot {{ color: {MUTED}; font-size: 0.8rem; margin-top: 2.2rem; text-align: center; }}
 
-  /* ---- app-level nav header: logo + "HeronGuide" title, links Home in-app ----
-     Uses st.page_link so navigation stays inside Streamlit's session (a raw
-     anchor would reload the browser and drop the login state). Flat look —
-     no pill, border or shadow, deliberately readable as a title, not a button. */
-  .st-key-hg_topnav {{
-    display: flex; align-items: center; margin-bottom: 0.1rem;
-  }}
-  .st-key-hg_topnav [data-testid="stPageLink-NavLink"] {{
-    display: inline-flex; align-items: center; gap: 0.6rem;
-    font-size: 1.18rem; font-weight: 800; letter-spacing: -0.3px;
-    color: {NAVY} !important;
-    padding: 0.15rem; border-radius: 10px;
-    transition: opacity var(--hg-ease);
-  }}
-  .st-key-hg_topnav [data-testid="stPageLink-NavLink"]::before {{
-    content: ""; flex: none; width: 38px; height: 38px;
-    background: url("{logo_data_uri()}") center / contain no-repeat;
-  }}
-  .st-key-hg_topnav [data-testid="stPageLink-NavLink"]:hover {{
-    opacity: 0.82;
-  }}
-  .st-key-hg_topnav a:focus-visible {{
-    outline: 3px solid {NAVY_SOFT}; outline-offset: 2px;
-  }}
-  .st-key-hg_topnav .hg-nav-tagline {{
-    margin-top: 0.1rem; text-align: right;
-    color: {MUTED}; font-size: 0.86rem; line-height: 1.3;
-  }}
-  @media (max-width: 640px) {{
-    .st-key-hg_topnav .hg-nav-tagline {{ display: none; }}
-  }}
-
   @media (max-width: 900px) {{
     /* sidebar becomes an overlay drawer; keep it readable and dim the page behind it */
     [data-testid="stSidebar"][aria-expanded="true"] {{
@@ -474,23 +442,15 @@ def render_footer() -> None:
 
 
 def render_nav_header(home_page) -> None:
-    """App-level header: logo + "HeronGuide" title, clicking it goes Home.
+    """App-level header: just the logo; clicking it goes Home.
 
-    ``home_page`` is the ``st.Page`` for Home. Rendering uses ``st.page_link``
-    so the click is handled by Streamlit's router without a browser reload —
-    a raw anchor would reload the page, drop session state, and bounce the
-    user back to the login screen. Styled flat (no pill/button look). Rendered
-    after the login gate in ``app.py``, so the auth screen never shows it.
+    ``home_page`` is the ``st.Page`` for Home. Rendered with a single
+    ``st.page_link``, so the click is handled by Streamlit's router without
+    a browser reload — a link would drop session state and bounce the user
+    back to login. Rendered after the login gate in ``app.py``, so the auth
+    screen never shows it.
     """
-    with st.container(key="hg_topnav"):
-        left, right = st.columns([1, 2], gap="small")
-        with left:
-            st.page_link(home_page, label="HeronGuide")
-        with right:
-            st.markdown(
-                '<div class="hg-nav-tagline">UMak CCIS Smart Admission Advisor</div>',
-                unsafe_allow_html=True,
-            )
+    st.page_link(home_page, label="")
 
 
 def render_topbar(name: str | None = None, subtitle: str = "UMak Student") -> None:
